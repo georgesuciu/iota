@@ -12,11 +12,11 @@
     input, textarea { width: 100%; margin-bottom: 20px; padding: 8px; }
     button { padding: 10px 20px; font-size: 16px; }
     #qr { margin-top: 20px; }
-    a { word-break: break-all; }
+    a { word-break: break-word; }
   </style>
 </head>
 <body>
-  <h2>Publish to IOTA Testnet using Shimmer</h2>
+  <h2>Publish to IOTA Testnet</h2>
   <form id="iotaForm">
     <label for="tag">Tag:</label>
     <input type="text" id="tag" name="tag" required />
@@ -24,7 +24,7 @@
     <label for="data">Data:</label>
     <textarea id="data" name="data" rows="4" required></textarea>
 
-    <button type="submit">Send to IOTA using Shimmer</button>
+    <button type="submit">Send to IOTA</button>
   </form>
 
   <div id="status"></div>
@@ -34,7 +34,7 @@
     import { Client } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
 
     const client = new Client({
-      nodes: ['https://api.testnet.shimmer.network'],
+      nodes: ['https://api.testnet.iotaledger.net'],
     });
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
@@ -49,7 +49,7 @@
         });
 
         const blockId = block.blockId;
-        const explorerUrl = `https://explorer.shimmer.network/testnet/block/${blockId}`;
+        const explorerUrl = `https://explorer.iotaledger.net/testnet/block/${blockId}`;
 
         document.getElementById('status').innerHTML = `
           ✅ Block sent!<br>
