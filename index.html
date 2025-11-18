@@ -3,21 +3,32 @@
 <head>
   <title>IOTA Testnet Publisher</title>
   <script src="https://cdn.jsdelivr.net/npm/@iota/sdk/web.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    label { font-weight: bold; }
+    input, textarea { width: 100%; margin-bottom: 20px; }
+    button { padding: 10px 20px; font-size: 16px; }
+    #qr { margin-top: 20px; }
+  </style>
 </head>
 <body>
   <h2>Publish to IOTA Testnet</h2>
   <form id="iotaForm">
-    <label for="tag">Tag:</label><br>
-    <input type="text" id="tag" name="tag" required><br><br>
-    <label for="data">Data:</label><br>
-    <textarea id="data" name="data" rows="4" cols="50" required></textarea><br><br>
+    <label for="tag">Tag:</label>
+    <input type="text" id="tag" name="tag" required>
+
+    <label for="data">Data:</label>
+    <textarea id="data" name="data" rows="4" required></textarea>
+
     <button type="submit">Send to IOTA</button>
   </form>
 
-  <p id="status"></p>
+  <div id="status"></div>
+  <canvas id="qr"></canvas>
 
   <script type="module">
-    import { Client, initLogger } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
+    import { Client } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
 
     const client = new Client({
       nodes: ['https://api.testnet.shimmer.network'],
@@ -34,7 +45,17 @@
           data: new TextEncoder().encode(data),
         });
 
-        document.getElementById('status').innerText = `Block sent! Block ID: ${block.blockId}`;
+        const blockId = block.blockId;
+        const explorerUrl = `https://explorer.shimmer.network/testnet/block/${blockId}`;
+
+        document.getElementById('status').innerHTML = `
+          ✅ Block sent!<br>
+          🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
+        `;
+
+        QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
+          if (error) console.error(error);
+        });
       } catch (err) {
         console.error(err);
         document.getElementById('status').innerText = "Error: " + err.message;
