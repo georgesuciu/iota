@@ -13,6 +13,7 @@
     button { padding: 10px 20px; font-size: 16px; }
     #qr { margin-top: 20px; }
     a { word-break: break-word; }
+    #status { margin-top: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -33,14 +34,24 @@
   <script type="module">
     import { Client } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
 
-    const client = new Client({
-      nodes: ['https://api.testnet.iotaledger.net'],
-    });
+    let client;
+    try {
+      client = new Client({
+        nodes: ['https://api.testnet.iotaledger.net'],
+      });
+    } catch (initError) {
+      document.getElementById('status').innerText = "❌ Failed to initialize IOTA client. Please check your internet connection or try again later.";
+    }
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const tag = document.getElementById('tag').value;
       const data = document.getElementById('data').value;
+
+      if (!client) {
+        document.getElementById('status').innerText = "❌ IOTA client not available. Cannot send data.";
+        return;
+      }
 
       try {
         const block = await client.buildAndPostBlock({
@@ -57,11 +68,14 @@
         `;
 
         QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
-          if (error) console.error(error);
+          if (error) {
+            console.error("QR Code generation error:", error);
+            document.getElementById('status').innerHTML += "<br>⚠️ Failed to generate QR code.";
+          }
         });
       } catch (err) {
-        console.error(err);
-        document.getElementById('status').innerText = "Error: " + err.message;
+        console.error("Block submission error:", err);
+        document.getElementById('status').innerText = "❌ Failed to send block. Please check your connection or try again later.";
       }
     });
   </script>
