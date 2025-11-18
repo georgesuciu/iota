@@ -53,10 +53,10 @@
       try {
         // Step 1: Get tips (parents)
         const tipsRes = await fetch(`${nodeUrl}/api/core/v2/tips`);
-        if (!tipsRes.ok) throw new Error("Failed to fetch tips from node.");
+        if (!tipsRes.ok) throw new Error(`Failed to fetch tips.\nStatus: ${tipsRes.status}\n${await tipsRes.text()}`);
         const tips = await tipsRes.json();
         const parents = tips.tips;
-        if (!Array.isArray(parents) || parents.length === 0) throw new Error("No valid tips returned.");
+        if (!Array.isArray(parents) || parents.length === 0) throw new Error("No valid tips returned from the node.");
 
         // Step 2: Build block
         const block = {
@@ -82,12 +82,12 @@
 
         if (!res.ok) {
           const errorText = await res.text();
-          throw new Error(`Block submission failed.\nStatus: ${res.status}\nResponse: ${errorText}`);
+          throw new Error(`❌ Failed to send block.\nStatus: ${res.status}\nResponse: ${errorText}\nPossible causes:\n- Node is unreachable\n- Invalid payload format\n- Network issue\n- CORS or browser restrictions`);
         }
 
         const result = await res.json();
         const blockId = result.blockId;
-        if (!blockId) throw new Error("No blockId returned from node.");
+        if (!blockId) throw new Error("❌ No blockId returned. The node may have rejected the block.");
 
         const explorerUrl = explorerBase + blockId;
 
@@ -99,7 +99,7 @@
         QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
           if (error) {
             console.error("QR Code error:", error);
-            document.getElementById('status').innerHTML += "\n⚠️ QR code generation failed.";
+            document.getElementById('status').innerHTML += "\n⚠️ QR code generation failed. Try refreshing the page.";
           }
         });
       } catch (err) {
