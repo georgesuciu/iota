@@ -34,13 +34,19 @@
   <script type="module">
     import { Client } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
 
-    let client;
-    try {
-      client = new Client({
-        nodes: ['https://api.testnet.iotaledger.net'],
-      });
-    } catch (initError) {
-      document.getElementById('status').innerText = "❌ Failed to initialize IOTA client. Please check your internet connection or try again later.";
+    const client = new Client({
+      nodes: ['https://api.testnet.iotaledger.net'],
+    });
+
+    async function checkConnection() {
+      try {
+        await client.getInfo();
+        return true;
+      } catch (err) {
+        console.error("API connection failed:", err);
+        document.getElementById('status').innerText = "❌ Cannot connect to IOTA testnet API. Please try again later.";
+        return false;
+      }
     }
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
@@ -48,10 +54,8 @@
       const tag = document.getElementById('tag').value;
       const data = document.getElementById('data').value;
 
-      if (!client) {
-        document.getElementById('status').innerText = "❌ IOTA client not available. Cannot send data.";
-        return;
-      }
+      const connected = await checkConnection();
+      if (!connected) return;
 
       try {
         const block = await client.buildAndPostBlock({
@@ -75,7 +79,7 @@
         });
       } catch (err) {
         console.error("Block submission error:", err);
-        document.getElementById('status').innerText = "❌ Failed to send block. Please check your connection or try again later.";
+        document.getElementById('status').innerText = "❌ Failed to send block. Please check your input or try again later.";
       }
     });
   </script>
