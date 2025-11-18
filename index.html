@@ -12,7 +12,7 @@
     button { padding: 10px 20px; font-size: 16px; }
     #qr { margin-top: 20px; }
     a { word-break: break-word; }
-    #status { margin-top: 20px; font-weight: bold; }
+    #status { margin-top: 20px; font-weight: bold; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -36,18 +36,25 @@
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const tag = document.getElementById('tag').value;
-      const data = document.getElementById('data').value;
+      const tag = document.getElementById('tag').value.trim();
+      const data = document.getElementById('data').value.trim();
       const timestamp = new Date().toISOString();
       const payload = `${data}\n\n[timestamp: ${timestamp}]`;
 
+      if (!tag || !data) {
+        document.getElementById('status').innerText = "❌ Tag and data fields must not be empty.";
+        return;
+      }
+
       try {
-        // Get tips (parents)
+        // Step 1: Get tips (parents)
         const tipsRes = await fetch(`${nodeUrl}/api/core/v2/tips`);
+        if (!tipsRes.ok) throw new Error("Failed to fetch tips from node.");
         const tips = await tipsRes.json();
         const parents = tips.tips;
+        if (!Array.isArray(parents) || parents.length === 0) throw new Error("No valid tips returned.");
 
-        // Build block
+        // Step 2: Build block
         const block = {
           protocolVersion: 2,
           parents: parents,
@@ -59,33 +66,38 @@
           nonce: "0"
         };
 
-        // Submit block
+        // Step 3: Submit block
         const res = await fetch(`${nodeUrl}/api/core/v2/block`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(block)
         });
 
-        if (!res.ok) throw new Error("Block submission failed");
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Block submission failed.\nStatus: ${res.status}\nResponse: ${errorText}`);
+        }
 
         const result = await res.json();
         const blockId = result.blockId;
+        if (!blockId) throw new Error("No blockId returned from node.");
+
         const explorerUrl = explorerBase + blockId;
 
         document.getElementById('status').innerHTML = `
-          ✅ Block sent!<br>
-          🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
+✅ Block sent successfully!
+🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
         `;
 
         QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
           if (error) {
             console.error("QR Code error:", error);
-            document.getElementById('status').innerHTML += "<br>⚠️ QR code generation failed.";
+            document.getElementById('status').innerHTML += "\n⚠️ QR code generation failed.";
           }
         });
       } catch (err) {
         console.error("Error:", err);
-        document.getElementById('status').innerText = "❌ Failed to send block. Check your connection or try again later.";
+        document.getElementById('status').innerText = `❌ Error occurred:\n${err.message}`;
       }
     });
   </script>
