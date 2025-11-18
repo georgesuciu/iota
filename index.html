@@ -32,7 +32,7 @@
 
   <script>
     const nodeUrl = "https://api.testnet.iotaledger.net";
-    const explorerBase = "https://explorer.iotaledger.net/testnet/block/";
+    const explorerBase = "https://explorer.iotaledger.net/testnet/message/";
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -41,39 +41,29 @@
       const timestamp = new Date().toISOString();
       const payload = `${data}\n\n[timestamp: ${timestamp}]`;
 
+      const message = {
+        payload: {
+          type: 2,
+          index: btoa(tag),
+          data: btoa(payload)
+        }
+      };
+
       try {
-        // Get tips (parents)
-        const tipsRes = await fetch(`${nodeUrl}/api/core/v2/tips`);
-        const tips = await tipsRes.json();
-        const parents = tips.tips;
-
-        // Build block
-        const block = {
-          protocolVersion: 2,
-          parents: parents,
-          payload: {
-            type: 2,
-            tag: btoa(tag),
-            data: btoa(payload)
-          },
-          nonce: "0"
-        };
-
-        // Submit block
-        const res = await fetch(`${nodeUrl}/api/core/v2/block`, {
+        const res = await fetch(`${nodeUrl}/api/core/v2/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(block)
+          body: JSON.stringify(message)
         });
 
-        if (!res.ok) throw new Error("Block submission failed");
+        if (!res.ok) throw new Error("Message submission failed");
 
         const result = await res.json();
-        const blockId = result.blockId;
-        const explorerUrl = explorerBase + blockId;
+        const messageId = result.messageId;
+        const explorerUrl = explorerBase + messageId;
 
         document.getElementById('status').innerHTML = `
-          ✅ Block sent!<br>
+          ✅ Message sent!<br>
           🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
         `;
 
@@ -85,7 +75,7 @@
         });
       } catch (err) {
         console.error("Error:", err);
-        document.getElementById('status').innerText = "❌ Failed to send block. Check your connection or try again later.";
+        document.getElementById('status').innerText = "❌ Failed to send message. Check your connection or try again later.";
       }
     });
   </script>
