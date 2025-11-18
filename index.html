@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IOTA Testnet Publisher</title>
-  <script src="https://cdn.jsdelivr.net/npm/@iota/sdk/web.js"></script>
+  <title>IOTA Rebased Testnet Publisher</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; max-width: 600px; }
@@ -17,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h2>Publish to IOTA Testnet</h2>
+  <h2>Publish to IOTA Rebased Testnet</h2>
   <form id="iotaForm">
     <label for="tag">Tag:</label>
     <input type="text" id="tag" name="tag" required />
@@ -31,23 +30,9 @@
   <div id="status"></div>
   <canvas id="qr"></canvas>
 
-  <script type="module">
-    import { Client } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
-
-    const client = new Client({
-      nodes: ['https://api.testnet.iotaledger.net'],
-    });
-
-    async function checkConnection() {
-      try {
-        await client.getInfo();
-        return true;
-      } catch (err) {
-        console.error("API connection failed:", err);
-        document.getElementById('status').innerText = "❌ Cannot connect to IOTA testnet API. Please try again later.";
-        return false;
-      }
-    }
+  <script>
+    const nodeUrl = "https://api.testnet.iotaledger.net";
+    const explorerBase = "https://explorer.iotaledger.net/testnet/block/";
 
     document.getElementById('iotaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -56,17 +41,36 @@
       const timestamp = new Date().toISOString();
       const payload = `${data}\n\n[timestamp: ${timestamp}]`;
 
-      const connected = await checkConnection();
-      if (!connected) return;
-
       try {
-        const block = await client.buildAndPostBlock({
-          tag: tag,
-          data: new TextEncoder().encode(payload),
+        // Get tips (parents)
+        const tipsRes = await fetch(`${nodeUrl}/api/core/v2/tips`);
+        const tips = await tipsRes.json();
+        const parents = tips.tips;
+
+        // Build block
+        const block = {
+          protocolVersion: 2,
+          parents: parents,
+          payload: {
+            type: 2,
+            tag: btoa(tag),
+            data: btoa(payload)
+          },
+          nonce: "0"
+        };
+
+        // Submit block
+        const res = await fetch(`${nodeUrl}/api/core/v2/block`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(block)
         });
 
-        const blockId = block.blockId;
-        const explorerUrl = `https://explorer.iotaledger.net/testnet/block/${blockId}`;
+        if (!res.ok) throw new Error("Block submission failed");
+
+        const result = await res.json();
+        const blockId = result.blockId;
+        const explorerUrl = explorerBase + blockId;
 
         document.getElementById('status').innerHTML = `
           ✅ Block sent!<br>
@@ -75,13 +79,13 @@
 
         QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
           if (error) {
-            console.error("QR Code generation error:", error);
-            document.getElementById('status').innerHTML += "<br>⚠️ Failed to generate QR code.";
+            console.error("QR Code error:", error);
+            document.getElementById('status').innerHTML += "<br>⚠️ QR code generation failed.";
           }
         });
       } catch (err) {
-        console.error("Block submission error:", err);
-        document.getElementById('status').innerText = "❌ Failed to send block. Please check your input or try again later.";
+        console.error("Error:", err);
+        document.getElementById('status').innerText = "❌ Failed to send block. Check your connection or try again later.";
       }
     });
   </script>
