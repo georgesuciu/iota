@@ -53,6 +53,8 @@
       e.preventDefault();
       const tag = document.getElementById('tag').value;
       const data = document.getElementById('data').value;
+      const timestamp = new Date().toISOString();
+      const payload = `${data}\n\n[timestamp: ${timestamp}]`;
 
       const connected = await checkConnection();
       if (!connected) return;
@@ -60,7 +62,7 @@
       try {
         const block = await client.buildAndPostBlock({
           tag: tag,
-          data: new TextEncoder().encode(data),
+          data: new TextEncoder().encode(payload),
         });
 
         const blockId = block.blockId;
