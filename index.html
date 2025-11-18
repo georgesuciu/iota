@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>IOTA Testnet Publisher</title>
+  <script src="https://cdn.jsdelivr.net/npm/@iota/sdk/web.js"></script>
+</head>
+<body>
+  <h2>Publish to IOTA Testnet</h2>
+  <form id="iotaForm">
+    <label for="tag">Tag:</label><br>
+    <input type="text" id="tag" name="tag" required><br><br>
+    <label for="data">Data:</label><br>
+    <textarea id="data" name="data" rows="4" cols="50" required></textarea><br><br>
+    <button type="submit">Send to IOTA</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script type="module">
+    import { Client, initLogger } from 'https://cdn.jsdelivr.net/npm/@iota/sdk/web.js';
+
+    const client = new Client({
+      nodes: ['https://api.testnet.shimmer.network'],
+    });
+
+    document.getElementById('iotaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tag = document.getElementById('tag').value;
+      const data = document.getElementById('data').value;
+
+      try {
+        const block = await client.buildAndPostBlock({
+          tag: tag,
+          data: new TextEncoder().encode(data),
+        });
+
+        document.getElementById('status').innerText = `Block sent! Block ID: ${block.blockId}`;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('status').innerText = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
