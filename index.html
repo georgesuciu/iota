@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IOTA Testnet Publisher with Faucet</title>
+  <title>IOTA Wallet Publisher</title>
   <script src="https://cdn.jsdelivr.net/npm/@iota/sdk/web.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-  <h2>IOTA Rebased Testnet Publisher</h2>
+  <h2>IOTA Wallet Publisher (Rebased Testnet)</h2>
 
   <div id="wallet"></div>
   <canvas id="walletQR"></canvas>
@@ -30,7 +30,7 @@
     <label for="data">Data:</label>
     <textarea id="data" name="data" rows="4" required></textarea>
 
-    <button type="submit">Send to IOTA</button>
+    <button type="submit">Send Tagged Data</button>
   </form>
 
   <div id="status"></div>
@@ -43,29 +43,31 @@
     import { Client, Utils } from "https://cdn.jsdelivr.net/npm/@iota/sdk/web.js";
 
     const nodeUrl = "https://api.testnet.iotaledger.net";
-    const explorerBase = "https://explorer.iotaledger.net/testnet/block/";
     const faucetUrl = "https://faucet.testnet.iotaledger.net";
+    const explorerBase = "https://explorer.iotaledger.net/testnet/block/";
 
     const client = new Client({ nodes: [nodeUrl] });
 
-    // Generate wallet and address
-    const secretManager = { generateMnemonic: Utils.generateMnemonic() };
-    const address = await client.generateAddresses(secretManager, {
+    // Generate wallet
+    const mnemonic = Utils.generateMnemonic();
+    const secretManager = { mnemonic };
+    const addresses = await client.generateAddresses(secretManager, {
       range: { start: 0, end: 1 },
       bech32Hrp: "atoi"
     });
+    const walletAddress = addresses[0];
 
-    const walletAddress = address[0];
+    // Display wallet info
     document.getElementById("wallet").innerHTML = `
-🔐 Wallet Address (Ed25519):
+🔐 Wallet Address:
 <code>${walletAddress}</code>
 
 💧 Request free test IOTAs:
 🔗 <a href="${faucetUrl}?address=${walletAddress}" target="_blank">${faucetUrl}?address=${walletAddress}</a>
     `;
-
     QRCode.toCanvas(document.getElementById("walletQR"), walletAddress);
 
+    // Form submission
     document.getElementById("iotaForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const tag = document.getElementById("tag").value.trim();
@@ -96,9 +98,7 @@
 ✅ Block sent successfully!
 🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
         `;
-
         document.getElementById("debug").textContent = JSON.stringify(block, null, 2);
-
         QRCode.toCanvas(document.getElementById("qr"), explorerUrl);
       } catch (err) {
         console.error("Error:", err);
