@@ -3,21 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IOTA Rebased Testnet Publisher</title>
+  <title>IOTA Testnet Publisher with Faucet</title>
+  <script src="https://cdn.jsdelivr.net/npm/@iota/sdk/web.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; max-width: 700px; }
     label { font-weight: bold; }
     input, textarea { width: 100%; margin-bottom: 20px; padding: 8px; }
     button { padding: 10px 20px; font-size: 16px; }
-    #qr { margin-top: 20px; }
+    #qr, #walletQR { margin-top: 20px; }
     a { word-break: break-word; }
-    #status { margin-top: 20px; font-weight: bold; white-space: pre-wrap; }
+    #status, #wallet { margin-top: 20px; font-weight: bold; white-space: pre-wrap; }
     #debug { margin-top: 30px; background: #f4f4f4; padding: 15px; border: 1px solid #ccc; font-family: monospace; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <h2>Publish to IOTA Rebased Testnet</h2>
+  <h2>IOTA Rebased Testnet Publisher</h2>
+
+  <div id="wallet"></div>
+  <canvas id="walletQR"></canvas>
+
   <form id="iotaForm">
     <label for="tag">Tag:</label>
     <input type="text" id="tag" name="tag" required />
@@ -34,77 +39,70 @@
   <h3>🔍 Debug Payload</h3>
   <div id="debug">(waiting for submission...)</div>
 
-  <script>
+  <script type="module">
+    import { Client, Utils } from "https://cdn.jsdelivr.net/npm/@iota/sdk/web.js";
+
     const nodeUrl = "https://api.testnet.iotaledger.net";
     const explorerBase = "https://explorer.iotaledger.net/testnet/block/";
+    const faucetUrl = "https://faucet.testnet.iotaledger.net";
 
-    document.getElementById('iotaForm').addEventListener('submit', async (e) => {
+    const client = new Client({ nodes: [nodeUrl] });
+
+    // Generate wallet and address
+    const secretManager = { generateMnemonic: Utils.generateMnemonic() };
+    const address = await client.generateAddresses(secretManager, {
+      range: { start: 0, end: 1 },
+      bech32Hrp: "atoi"
+    });
+
+    const walletAddress = address[0];
+    document.getElementById("wallet").innerHTML = `
+🔐 Wallet Address (Ed25519):
+<code>${walletAddress}</code>
+
+💧 Request free test IOTAs:
+🔗 <a href="${faucetUrl}?address=${walletAddress}" target="_blank">${faucetUrl}?address=${walletAddress}</a>
+    `;
+
+    QRCode.toCanvas(document.getElementById("walletQR"), walletAddress);
+
+    document.getElementById("iotaForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const tag = document.getElementById('tag').value.trim();
-      const data = document.getElementById('data').value.trim();
+      const tag = document.getElementById("tag").value.trim();
+      const data = document.getElementById("data").value.trim();
       const timestamp = new Date().toISOString();
       const payload = `${data}\n\n[timestamp: ${timestamp}]`;
 
       if (!tag || !data) {
-        document.getElementById('status').innerText = "❌ Tag and data fields must not be empty.";
+        document.getElementById("status").innerText = "❌ Tag and data fields must not be empty.";
         return;
       }
 
       try {
-        // Step 1: Get tips (parents)
-        const tipsRes = await fetch(`${nodeUrl}/api/core/v2/tips`);
-        if (!tipsRes.ok) throw new Error(`Failed to fetch tips.\nStatus: ${tipsRes.status}\n${await tipsRes.text()}`);
-        const tips = await tipsRes.json();
-        const parents = tips.tips;
-        if (!Array.isArray(parents) || parents.length === 0) throw new Error("No valid tips returned from the node.");
-
-        // Step 2: Build block
-        const block = {
-          protocolVersion: 2,
-          parents: parents,
+        const tips = await client.getTips();
+        const block = await client.buildBlock({
+          parentBlockIds: tips,
           payload: {
             type: 2,
-            tag: btoa(tag),
-            data: btoa(payload)
-          },
-          nonce: "0"
-        };
-
-        // Show debug payload
-        document.getElementById('debug').textContent = JSON.stringify(block, null, 2);
-
-        // Step 3: Submit block
-        const res = await fetch(`${nodeUrl}/api/core/v2/block`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(block)
+            tag: Utils.toHex(tag),
+            data: Utils.toHex(payload)
+          }
         });
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`❌ Failed to send block.\nStatus: ${res.status}\nResponse: ${errorText}\nPossible causes:\n- Node is unreachable\n- Invalid payload format\n- Network issue\n- CORS or browser restrictions`);
-        }
-
-        const result = await res.json();
-        const blockId = result.blockId;
-        if (!blockId) throw new Error("❌ No blockId returned. The node may have rejected the block.");
-
+        const blockId = await client.postBlock(block);
         const explorerUrl = explorerBase + blockId;
 
-        document.getElementById('status').innerHTML = `
+        document.getElementById("status").innerHTML = `
 ✅ Block sent successfully!
 🔗 <a href="${explorerUrl}" target="_blank">${explorerUrl}</a>
         `;
 
-        QRCode.toCanvas(document.getElementById('qr'), explorerUrl, function (error) {
-          if (error) {
-            console.error("QR Code error:", error);
-            document.getElementById('status').innerHTML += "\n⚠️ QR code generation failed. Try refreshing the page.";
-          }
-        });
+        document.getElementById("debug").textContent = JSON.stringify(block, null, 2);
+
+        QRCode.toCanvas(document.getElementById("qr"), explorerUrl);
       } catch (err) {
         console.error("Error:", err);
-        document.getElementById('status').innerText = `❌ Error occurred:\n${err.message}`;
+        document.getElementById("status").innerText = `❌ Failed to send block:\n${err.message}`;
       }
     });
   </script>
